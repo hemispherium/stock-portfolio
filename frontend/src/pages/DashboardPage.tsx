@@ -1,8 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import Layout from '../components/Layout';
 import HoldingRow from '../components/HoldingRow';
 import AddHoldingForm from '../components/AddHoldingForm';
 import { usePortfolios, useCreatePortfolio, useDeletePortfolio } from '../hooks/usePortfolio';
+import type { Holding } from '../types';
 
 export default function DashboardPage() {
   const { data: portfolios, isLoading } = usePortfolios();
@@ -10,6 +20,38 @@ export default function DashboardPage() {
   const deletePortfolio = useDeletePortfolio();
   const [newName, setNewName] = useState('');
   const [showAddForm, setShowAddForm] = useState<number | null>(null);
+  const [holdingOrders, setHoldingOrders] = useState<Record<number, Holding[]>>({});
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  // portfoliosが更新されたら順番をリセット（新規追加・削除時）
+  useEffect(() => {
+    if (!portfolios) return;
+    setHoldingOrders((prev) => {
+      const next: Record<number, Holding[]> = {};
+      for (const p of portfolios) {
+        const prevIds = prev[p.id]?.map((h) => h.id) ?? [];
+        const newIds = p.holdings.map((h) => h.id);
+        const sameSet =
+          prevIds.length === newIds.length && newIds.every((id) => prevIds.includes(id));
+        next[p.id] = sameSet
+          ? prev[p.id].map((h) => p.holdings.find((ph) => ph.id === h.id)!)
+          : p.holdings;
+      }
+      return next;
+    });
+  }, [portfolios]);
+
+  const handleDragEnd = (portfolioId: number) => (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setHoldingOrders((prev) => {
+      const items = prev[portfolioId] ?? [];
+      const oldIndex = items.findIndex((h) => h.id === active.id);
+      const newIndex = items.findIndex((h) => h.id === over.id);
+      return { ...prev, [portfolioId]: arrayMove(items, oldIndex, newIndex) };
+    });
+  };
 
   const handleCreatePortfolio = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,47 +83,58 @@ export default function DashboardPage() {
         <p style={{ color: '#64748b' }}>ポートフォリオがありません。上のフォームから作成してください。</p>
       )}
 
-      {portfolios?.map((portfolio) => (
-        <div key={portfolio.id} style={card}>
-          {/* ヘッダー */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{portfolio.name}</h3>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowAddForm(showAddForm === portfolio.id ? null : portfolio.id)} style={btnSecondary}>
-                + 銘柄追加
-              </button>
-              <button onClick={() => deletePortfolio.mutate(portfolio.id)} style={btnDanger}>削除</button>
+      {portfolios?.map((portfolio) => {
+        const holdings = holdingOrders[portfolio.id] ?? portfolio.holdings;
+        return (
+          <div key={portfolio.id} style={card}>
+            {/* ヘッダー */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{portfolio.name}</h3>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setShowAddForm(showAddForm === portfolio.id ? null : portfolio.id)} style={btnSecondary}>
+                  + 銘柄追加
+                </button>
+                <button onClick={() => deletePortfolio.mutate(portfolio.id)} style={btnDanger}>削除</button>
+              </div>
             </div>
+
+            {/* 銘柄追加フォーム */}
+            {showAddForm === portfolio.id && (
+              <AddHoldingForm portfolioId={portfolio.id} onClose={() => setShowAddForm(null)} />
+            )}
+
+            {/* 保有銘柄テーブル */}
+            {holdings.length === 0 ? (
+              <p style={{ color: '#94a3b8', fontSize: 14, marginTop: 12 }}>保有銘柄がありません</p>
+            ) : (
+              <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc' }}>
+                      {['', '銘柄', '数量', '取得単価', '現在値', '損益', '損益率', ''].map((h, i) => (
+                        <th key={i} style={{ ...th, textAlign: h === '銘柄' || h === '' ? 'left' : 'right' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd(portfolio.id)}
+                  >
+                    <SortableContext items={holdings.map((h) => h.id)} strategy={verticalListSortingStrategy}>
+                      <tbody>
+                        {holdings.map((holding) => (
+                          <HoldingRow key={holding.id} holding={holding} portfolioId={portfolio.id} />
+                        ))}
+                      </tbody>
+                    </SortableContext>
+                  </DndContext>
+                </table>
+              </div>
+            )}
           </div>
-
-          {/* 銘柄追加フォーム */}
-          {showAddForm === portfolio.id && (
-            <AddHoldingForm portfolioId={portfolio.id} onClose={() => setShowAddForm(null)} />
-          )}
-
-          {/* 保有銘柄テーブル */}
-          {portfolio.holdings.length === 0 ? (
-            <p style={{ color: '#94a3b8', fontSize: 14, marginTop: 12 }}>保有銘柄がありません</p>
-          ) : (
-            <div style={{ overflowX: 'auto', marginTop: 12 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f8fafc' }}>
-                    {['銘柄', '数量', '取得単価', '現在値', '損益', '損益率', ''].map((h) => (
-                      <th key={h} style={{ ...th, textAlign: h === '銘柄' || h === '' ? 'left' : 'right' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {portfolio.holdings.map((holding) => (
-                    <HoldingRow key={holding.id} holding={holding} portfolioId={portfolio.id} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </Layout>
   );
 }

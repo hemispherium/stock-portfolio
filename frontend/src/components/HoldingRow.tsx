@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useStockPrice } from '../hooks/useStockPrice';
 import { useDeleteHolding } from '../hooks/usePortfolio';
 import ChartModal from './ChartModal';
@@ -15,6 +17,17 @@ export default function HoldingRow({ holding, portfolioId }: Props) {
   const deleteHolding = useDeleteHolding();
   const [showChart, setShowChart] = useState(false);
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: holding.id,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    borderBottom: '1px solid #e2e8f0',
+  };
+
   const currency = stock?.currency ?? 'USD';
   const currentPrice = stock?.price ?? null;
   const gainLoss = currentPrice !== null ? (currentPrice - holding.avg_cost) * holding.quantity : null;
@@ -25,7 +38,17 @@ export default function HoldingRow({ holding, portfolioId }: Props) {
 
   return (
     <>
-      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+      <tr ref={setNodeRef} style={style}>
+        <td style={td}>
+          <span
+            {...attributes}
+            {...listeners}
+            style={{ cursor: 'grab', color: '#cbd5e1', fontSize: 16, padding: '0 4px', userSelect: 'none' }}
+            title="ドラッグして並び替え"
+          >
+            ⠿
+          </span>
+        </td>
         <td style={td}>
           <button
             onClick={() => setShowChart(true)}
