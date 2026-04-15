@@ -1,0 +1,10 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache && php artisan migrate --force && supervisord -c /etc/supervisord.conf"
+healthcheckPath = "/up"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
