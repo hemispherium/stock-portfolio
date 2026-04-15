@@ -25,7 +25,7 @@ FROM nginx:1.27-alpine AS production
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # SPA 用 nginx 設定 (全パスを index.html へフォールバック)
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx.conf /etc/nginx/templates/default.conf.template
 
 EXPOSE 3000
 
