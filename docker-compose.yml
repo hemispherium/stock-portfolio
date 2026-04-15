@@ -1,0 +1,104 @@
+services:
+  # ----- Laravel API -----
+  backend:
+    build:
+      context: ./backend
+      target: production
+    ports:
+      - "8003:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: db
+      REDIS_HOST: redis
+    command: >
+      sh -c "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
+      && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/var/www/html
+
+  # ----- Laravel Worker -----
+  worker:
+    build:
+      context: ./backend
+      target: production
+    command: >
+      sh -c "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
+      && php artisan queue:work --sleep=3 --tries=3 --max-time=3600"
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: db
+      REDIS_HOST: redis
+    depends_on:
+      - backend
+      - redis
+    volumes:
+      - ./backend:/var/www/html
+
+  # ----- Laravel Horizon (Worker監視) -----
+  horizon:
+    build:
+      context: ./backend
+      target: production
+    command: >
+      sh -c "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
+      && php artisan horizon"
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: db
+      REDIS_HOST: redis
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/var/www/html
+
+  # ----- React Frontend -----
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+      args:
+        VITE_API_BASE_URL: http://localhost:8003
+    ports:
+      - "3000:3000"
+
+  # ----- Redis -----
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ----- PostgreSQL -----
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: stock_portfolio
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis_data:
+  db_data:
