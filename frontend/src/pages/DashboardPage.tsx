@@ -31,12 +31,13 @@ export default function DashboardPage() {
       const next: Record<number, Holding[]> = {};
       for (const p of portfolios) {
         const prevIds = prev[p.id]?.map((h) => h.id) ?? [];
-        const newIds = p.holdings.map((h) => h.id);
+        const newIds = (p.holdings ?? []).map((h) => h.id);
         const sameSet =
           prevIds.length === newIds.length && newIds.every((id) => prevIds.includes(id));
+        const holdings = p.holdings ?? [];
         next[p.id] = sameSet
-          ? prev[p.id].map((h) => p.holdings.find((ph) => ph.id === h.id)!)
-          : p.holdings;
+          ? prev[p.id].map((h) => holdings.find((ph) => ph.id === h.id)!)
+          : holdings;
       }
       return next;
     });
@@ -84,7 +85,7 @@ export default function DashboardPage() {
       )}
 
       {portfolios?.map((portfolio) => {
-        const holdings = holdingOrders[portfolio.id] ?? portfolio.holdings;
+        const holdings = holdingOrders[portfolio.id] ?? portfolio.holdings ?? [];
         return (
           <div key={portfolio.id} style={card}>
             {/* ヘッダー */}
