@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class StockPriceService
@@ -21,7 +22,13 @@ class StockPriceService
         $symbol = strtoupper($symbol);
         $data   = $this->fetchFromYahoo($symbol);
 
-        Cache::put(self::CACHE_PREFIX . $symbol, $data, self::CACHE_TTL);
+        $key = self::CACHE_PREFIX . $symbol;
+        Cache::put($key, $data, self::CACHE_TTL);
+        Log::info('Cache written', [
+            'driver' => config('cache.default'),
+            'key'    => $key,
+            'symbol' => $symbol,
+        ]);
 
         return $data;
     }
