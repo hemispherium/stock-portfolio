@@ -32,6 +32,7 @@ export interface StockPrice {
   price: number;
   change: number;
   change_pct: number;
+  currency: string;
   cached: boolean;
 }
 

@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { getStockHistory } from '../api/stocks';
 import { useStockPrice } from '../hooks/useStockPrice';
+import { formatPrice, currencySymbol } from '../utils/currency';
 
 const RANGES = [
   { label: '1D',  value: '1d'  },
@@ -42,9 +43,8 @@ export default function ChartModal({ symbol, onClose }: Props) {
   const isUp = price ? price.change >= 0 : true;
   const lineColor = isUp ? '#16a34a' : '#dc2626';
   const fillColor = isUp ? '#dcfce7' : '#fee2e2';
-
-  const fmt = (n: number) =>
-    n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const currency = price?.currency ?? 'USD';
+  const symbol_ = currencySymbol(currency);
 
   return (
     <div style={overlay} onClick={onClose}>
@@ -55,9 +55,9 @@ export default function ChartModal({ symbol, onClose }: Props) {
             <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0f172a' }}>{symbol}</h2>
             {price && (
               <div style={{ marginTop: 6, display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: 28, fontWeight: 700, color: '#0f172a' }}>${fmt(price.price)}</span>
+                <span style={{ fontSize: 28, fontWeight: 700, color: '#0f172a' }}>{formatPrice(price.price, currency)}</span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: lineColor }}>
-                  {isUp ? '+' : ''}{fmt(price.change)} ({isUp ? '+' : ''}{price.change_pct.toFixed(2)}%)
+                  {isUp ? '+' : ''}{formatPrice(price.change, currency)} ({isUp ? '+' : ''}{price.change_pct.toFixed(2)}%)
                 </span>
               </div>
             )}
@@ -103,11 +103,11 @@ export default function ChartModal({ symbol, onClose }: Props) {
                 <YAxis
                   domain={['auto', 'auto']}
                   tick={{ fontSize: 11, fill: '#94a3b8' }}
-                  tickFormatter={(v) => `$${v}`}
+                  tickFormatter={(v) => `${symbol_}${v}`}
                   width={60}
                 />
                 <Tooltip
-                  formatter={(v) => [`$${fmt(Number(v))}`, '終値']}
+                  formatter={(v) => [formatPrice(Number(v), currency), '終値']}
                   labelStyle={{ color: '#0f172a', fontWeight: 600 }}
                   contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
                 />

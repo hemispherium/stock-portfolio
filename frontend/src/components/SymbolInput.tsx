@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { searchStocks } from '../api/stocks';
 import { useStockPrice } from '../hooks/useStockPrice';
+import { formatPrice } from '../utils/currency';
 import type { StockSuggestion } from '../types';
 
 interface Props {
@@ -23,20 +24,20 @@ function SuggestionItem({ s, onSelect }: { s: StockSuggestion; onSelect: () => v
 
   const isUp = stock ? stock.change >= 0 : null;
   const priceColor = isUp === null ? '#0f172a' : isUp ? '#16a34a' : '#dc2626';
-  const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const currency = stock?.currency ?? 'USD';
 
   return (
     <div style={item} onMouseDown={onSelect}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontWeight: 700, color: '#1e293b' }}>{s.symbol}</span>
         <span style={{ fontWeight: 600, color: priceColor }}>
-          {isLoading ? '...' : stock ? `$${fmt(stock.price)}` : '-'}
+          {isLoading ? '...' : stock ? formatPrice(stock.price, currency) : '-'}
         </span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
         <span style={{ fontSize: 11, color: '#94a3b8' }}>{s.type} · {s.exchange}</span>
         <span style={{ fontSize: 11, color: priceColor }}>
-          {stock ? `${isUp ? '+' : ''}${fmt(stock.change)} (${isUp ? '+' : ''}${stock.change_pct.toFixed(2)}%)` : ''}
+          {stock ? `${isUp ? '+' : ''}${formatPrice(stock.change, currency)} (${isUp ? '+' : ''}${stock.change_pct.toFixed(2)}%)` : ''}
         </span>
       </div>
     </div>

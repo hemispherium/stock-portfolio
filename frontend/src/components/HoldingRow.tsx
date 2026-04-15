@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStockPrice } from '../hooks/useStockPrice';
 import { useDeleteHolding } from '../hooks/usePortfolio';
 import ChartModal from './ChartModal';
+import { formatPrice } from '../utils/currency';
 import type { Holding } from '../types';
 
 interface Props {
@@ -14,12 +15,13 @@ export default function HoldingRow({ holding, portfolioId }: Props) {
   const deleteHolding = useDeleteHolding();
   const [showChart, setShowChart] = useState(false);
 
+  const currency = stock?.currency ?? 'USD';
   const currentPrice = stock?.price ?? null;
   const gainLoss = currentPrice !== null ? (currentPrice - holding.avg_cost) * holding.quantity : null;
   const gainLossPct = currentPrice !== null ? ((currentPrice - holding.avg_cost) / holding.avg_cost) * 100 : null;
   const isPositive = gainLoss !== null && gainLoss >= 0;
 
-  const fmt = (n: number) => n.toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtQty = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
   return (
     <>
@@ -32,13 +34,13 @@ export default function HoldingRow({ holding, portfolioId }: Props) {
             {holding.symbol}
           </button>
         </td>
-        <td style={tdR}>{fmt(holding.quantity)}</td>
-        <td style={tdR}>${fmt(holding.avg_cost)}</td>
+        <td style={tdR}>{fmtQty(holding.quantity)}</td>
+        <td style={tdR}>{formatPrice(holding.avg_cost, currency)}</td>
         <td style={tdR}>
-          {isLoading ? '...' : currentPrice !== null ? `$${fmt(currentPrice)}` : '-'}
+          {isLoading ? '...' : currentPrice !== null ? formatPrice(currentPrice, currency) : '-'}
         </td>
         <td style={{ ...tdR, color: isPositive ? '#16a34a' : '#dc2626' }}>
-          {gainLoss !== null ? `${isPositive ? '+' : ''}$${fmt(gainLoss)}` : '-'}
+          {gainLoss !== null ? `${isPositive ? '+' : ''}${formatPrice(gainLoss, currency)}` : '-'}
         </td>
         <td style={{ ...tdR, color: isPositive ? '#16a34a' : '#dc2626' }}>
           {gainLossPct !== null ? `${isPositive ? '+' : ''}${gainLossPct.toFixed(2)}%` : '-'}

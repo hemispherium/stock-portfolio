@@ -125,15 +125,16 @@ class StockPriceService
         $meta = $response->json('chart.result.0.meta')
             ?? throw new RuntimeException("Price not found in response for {$symbol}");
 
-        $price          = (float) ($meta['regularMarketPrice'] ?? 0);
-        $previousClose  = (float) ($meta['chartPreviousClose'] ?? $meta['previousClose'] ?? $price);
-        $change         = round($price - $previousClose, 4);
-        $changePct      = $previousClose > 0 ? round(($change / $previousClose) * 100, 2) : 0;
+        $price         = (float) ($meta['regularMarketPrice'] ?? 0);
+        $previousClose = (float) ($meta['chartPreviousClose'] ?? $meta['previousClose'] ?? $price);
+        $change        = round($price - $previousClose, 4);
+        $changePct     = $previousClose > 0 ? round(($change / $previousClose) * 100, 2) : 0;
 
         return [
             'price'      => $price,
             'change'     => $change,
             'change_pct' => $changePct,
+            'currency'   => $meta['currency'] ?? 'USD',
         ];
     }
 }
