@@ -14,44 +14,50 @@ import AddHoldingForm from '../components/AddHoldingForm';
 import { usePortfolios, useCreatePortfolio, useDeletePortfolio } from '../hooks/usePortfolio';
 import type { Holding } from '../types';
 
+// portfolioId → 並び順のID配列
+type OrderMap = Record<number, number[]>;
+
+function sortHoldings(holdings: Holding[], ids: number[]): Holding[] {
+  const map = new Map(holdings.map((h) => [h.id, h]));
+  const sorted = ids.flatMap((id) => (map.has(id) ? [map.get(id)!] : []));
+  // ids にない新規銘柄を末尾に追加
+  const inIds = new Set(ids);
+  const rest = holdings.filter((h) => !inIds.has(h.id));
+  return [...sorted, ...rest];
+}
+
 export default function DashboardPage() {
   const { data: portfolios, isLoading } = usePortfolios();
   const createPortfolio = useCreatePortfolio();
   const deletePortfolio = useDeletePortfolio();
   const [newName, setNewName] = useState('');
   const [showAddForm, setShowAddForm] = useState<number | null>(null);
-  const [holdingOrders, setHoldingOrders] = useState<Record<number, Holding[]>>({});
+  const [orderMap, setOrderMap] = useState<OrderMap>({});
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  // portfoliosが更新されたら順番をリセット（新規追加・削除時）
+  // 新規追加・削除時に順番をリセット（存在しないIDを除去）
   useEffect(() => {
     if (!portfolios) return;
-    setHoldingOrders((prev) => {
-      const next: Record<number, Holding[]> = {};
+    setOrderMap((prev) => {
+      const next: OrderMap = {};
       for (const p of portfolios) {
-        const prevIds = prev[p.id]?.map((h) => h.id) ?? [];
-        const newIds = (p.holdings ?? []).map((h) => h.id);
-        const sameSet =
-          prevIds.length === newIds.length && newIds.every((id) => prevIds.includes(id));
-        const holdings = p.holdings ?? [];
-        next[p.id] = sameSet
-          ? prev[p.id].map((h) => holdings.find((ph) => ph.id === h.id)!)
-          : holdings;
+        const serverIds = new Set((p.holdings ?? []).map((h) => h.id));
+        const prevOrder = prev[p.id] ?? [];
+        // 削除されたIDを除去、残りを維持
+        next[p.id] = prevOrder.filter((id) => serverIds.has(id));
       }
       return next;
     });
   }, [portfolios]);
 
-  const handleDragEnd = (portfolioId: number) => (event: DragEndEvent) => {
+  const handleDragEnd = (portfolioId: number, holdings: Holding[]) => (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setHoldingOrders((prev) => {
-      const items = prev[portfolioId] ?? [];
-      const oldIndex = items.findIndex((h) => h.id === active.id);
-      const newIndex = items.findIndex((h) => h.id === over.id);
-      return { ...prev, [portfolioId]: arrayMove(items, oldIndex, newIndex) };
-    });
+    const ids = holdings.map((h) => h.id);
+    const oldIndex = ids.indexOf(active.id as number);
+    const newIndex = ids.indexOf(over.id as number);
+    setOrderMap((prev) => ({ ...prev, [portfolioId]: arrayMove(ids, oldIndex, newIndex) }));
   };
 
   const handleCreatePortfolio = async (e: React.FormEvent) => {
@@ -79,16 +85,16 @@ export default function DashboardPage() {
         </form>
       </div>
 
-      {/* ポートフォリオ一覧 */}
       {portfolios?.length === 0 && (
         <p style={{ color: '#64748b' }}>ポートフォリオがありません。上のフォームから作成してください。</p>
       )}
 
       {portfolios?.map((portfolio) => {
-        const holdings = holdingOrders[portfolio.id] ?? portfolio.holdings ?? [];
+        const rawHoldings = portfolio.holdings ?? [];
+        const holdings = sortHoldings(rawHoldings, orderMap[portfolio.id] ?? []);
+
         return (
           <div key={portfolio.id} style={card}>
-            {/* ヘッダー */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{portfolio.name}</h3>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -99,38 +105,36 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* 銘柄追加フォーム */}
             {showAddForm === portfolio.id && (
               <AddHoldingForm portfolioId={portfolio.id} onClose={() => setShowAddForm(null)} />
             )}
 
-            {/* 保有銘柄テーブル */}
             {holdings.length === 0 ? (
               <p style={{ color: '#94a3b8', fontSize: 14, marginTop: 12 }}>保有銘柄がありません</p>
             ) : (
               <div style={{ overflowX: 'auto', marginTop: 12 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f8fafc' }}>
-                      {['', '銘柄', '数量', '取得単価', '現在値', '損益', '損益率', ''].map((h, i) => (
-                        <th key={i} style={{ ...th, textAlign: h === '銘柄' || h === '' ? 'left' : 'right' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd(portfolio.id)}
-                  >
-                    <SortableContext items={holdings.map((h) => h.id)} strategy={verticalListSortingStrategy}>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd(portfolio.id, holdings)}
+                >
+                  <SortableContext items={holdings.map((h) => h.id)} strategy={verticalListSortingStrategy}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#f8fafc' }}>
+                          {['', '銘柄', '数量', '取得単価', '現在値', '損益', '損益率', ''].map((h, i) => (
+                            <th key={i} style={{ ...th, textAlign: h === '銘柄' || h === '' ? 'left' : 'right' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
                       <tbody>
                         {holdings.map((holding) => (
                           <HoldingRow key={holding.id} holding={holding} portfolioId={portfolio.id} />
                         ))}
                       </tbody>
-                    </SortableContext>
-                  </DndContext>
-                </table>
+                    </table>
+                  </SortableContext>
+                </DndContext>
               </div>
             )}
           </div>
