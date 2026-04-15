@@ -55,6 +55,8 @@ COPY --from=deps /app .
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY docker/start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
 
 # 必要なディレクトリを作成
 RUN mkdir -p /var/log/supervisor /var/run
@@ -70,4 +72,4 @@ EXPOSE 8000
 # Railway の Start Command で上書き可能:
 #   worker → php artisan queue:work
 #   horizon → php artisan horizon
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["/usr/local/bin/start.sh"]
