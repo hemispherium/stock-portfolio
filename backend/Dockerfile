@@ -34,6 +34,7 @@ RUN apk add --no-cache \
     curl \
     libpq-dev \
     redis \
+    gettext \
     autoconf \
     g++ \
     make \
