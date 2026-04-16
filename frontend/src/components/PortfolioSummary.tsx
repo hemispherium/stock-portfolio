@@ -19,24 +19,33 @@ export default function PortfolioSummary({ holdings, displayCurrency, onToggleCu
     })),
   });
 
+  // 通貨変換が必要なため常に取得
   const { data: rateData } = useQuery({
     queryKey: ['stock', 'USDJPY=X'],
     queryFn: () => getStockPrice('USDJPY=X'),
     refetchInterval: 60_000,
     staleTime: 30_000,
-    enabled: displayCurrency === 'JPY',
   });
 
   if (holdings.length === 0) return null;
 
+  const usdJpyRate = rateData?.price ?? null;
+
+  // 各銘柄の損益をUSDに統一して合計
   let totalGainLossUSD = 0;
   for (let i = 0; i < holdings.length; i++) {
     const price = priceResults[i].data?.price;
+    const currency = priceResults[i].data?.currency ?? 'USD';
     if (price === undefined) return null;
-    totalGainLossUSD += (price - holdings[i].avg_cost) * holdings[i].quantity;
+    const gl = (price - holdings[i].avg_cost) * holdings[i].quantity;
+    if (currency === 'JPY') {
+      if (usdJpyRate === null) return null;
+      totalGainLossUSD += gl / usdJpyRate;
+    } else {
+      totalGainLossUSD += gl;
+    }
   }
 
-  const usdJpyRate = rateData?.price ?? null;
   let displayValue: number;
   let displayCurrencyStr: string;
 
