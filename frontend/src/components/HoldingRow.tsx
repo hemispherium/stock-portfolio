@@ -49,7 +49,7 @@ export default function HoldingRow({ holding, portfolioId }: Props) {
             ⠿
           </span>
         </td>
-        <td style={td}>
+        <td style={tdR}>
           <button
             onClick={() => setShowChart(true)}
             style={{ fontWeight: 700, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 0 }}
@@ -85,5 +85,5 @@ export default function HoldingRow({ holding, portfolioId }: Props) {
   );
 }
 
-const td: React.CSSProperties = { padding: '10px 12px', fontSize: 14 };
+const td: React.CSSProperties = { padding: '10px 12px', fontSize: 14, textAlign: 'left' };
 const tdR: React.CSSProperties = { ...td, textAlign: 'right' };

@@ -123,7 +123,7 @@ export default function DashboardPage() {
                       <thead>
                         <tr style={{ backgroundColor: '#f8fafc' }}>
                           {['', '銘柄', '数量', '取得単価', '現在値', '損益', '損益率', ''].map((h, i) => (
-                            <th key={i} style={{ ...th, textAlign: h === '銘柄' || h === '' ? 'left' : 'right' }}>{h}</th>
+                            <th key={i} style={{ ...th, textAlign: h === '' ? 'left' : 'right' }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
