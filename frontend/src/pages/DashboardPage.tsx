@@ -11,6 +11,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import Layout from '../components/Layout';
 import HoldingRow from '../components/HoldingRow';
 import AddHoldingForm from '../components/AddHoldingForm';
+import PortfolioSummary from '../components/PortfolioSummary';
 import { usePortfolios, useCreatePortfolio, useDeletePortfolio } from '../hooks/usePortfolio';
 import type { Holding } from '../types';
 
@@ -33,6 +34,7 @@ export default function DashboardPage() {
   const [newName, setNewName] = useState('');
   const [showAddForm, setShowAddForm] = useState<number | null>(null);
   const [orderMap, setOrderMap] = useState<OrderMap>({});
+  const [displayCurrency, setDisplayCurrency] = useState<'USD' | 'JPY'>('USD');
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -112,30 +114,37 @@ export default function DashboardPage() {
             {holdings.length === 0 ? (
               <p style={{ color: '#94a3b8', fontSize: 14, marginTop: 12 }}>保有銘柄がありません</p>
             ) : (
-              <div style={{ overflowX: 'auto', marginTop: 12 }}>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd(portfolio.id, holdings)}
-                >
-                  <SortableContext items={holdings.map((h) => h.id)} strategy={verticalListSortingStrategy}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ backgroundColor: '#f8fafc' }}>
-                          {['', '銘柄', '数量', '取得単価', '現在値', '損益', '損益率', ''].map((h, i) => (
-                            <th key={i} style={{ ...th, textAlign: h === '' ? 'left' : 'right' }}>{h}</th>
+              <>
+                <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd(portfolio.id, holdings)}
+                  >
+                    <SortableContext items={holdings.map((h) => h.id)} strategy={verticalListSortingStrategy}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f8fafc' }}>
+                            {['', '銘柄', '数量', '取得単価', '現在値', '損益', '損益率', ''].map((h, i) => (
+                              <th key={i} style={{ ...th, textAlign: h === '' ? 'left' : 'right' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {holdings.map((holding) => (
+                            <HoldingRow key={holding.id} holding={holding} portfolioId={portfolio.id} />
                           ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {holdings.map((holding) => (
-                          <HoldingRow key={holding.id} holding={holding} portfolioId={portfolio.id} />
-                        ))}
-                      </tbody>
-                    </table>
-                  </SortableContext>
-                </DndContext>
-              </div>
+                        </tbody>
+                      </table>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+                <PortfolioSummary
+                  holdings={holdings}
+                  displayCurrency={displayCurrency}
+                  onToggleCurrency={() => setDisplayCurrency((c) => c === 'USD' ? 'JPY' : 'USD')}
+                />
+              </>
             )}
           </div>
         );
